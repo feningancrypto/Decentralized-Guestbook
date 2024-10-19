@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guestbook on Base</title>
+    <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script>
+</head>
+<body>
+    <h1>Decentralized Guestbook</h1>
+    <textarea id="message" placeholder="Leave your message..."></textarea>
+    <button onclick="leaveMessage()">Submit</button>
+
+    <h2>Messages</h2>
+    <div id="messages"></div>
+
+    <script>
+        const contractAddress = "YOUR_CONTRACT_ADDRESS"; // Укажи адрес развернутого контракта
+        const abi = [
+            {
+                "inputs": [{ "internalType": "string", "name": "_text", "type": "string" }],
+                "name": "leaveMessage",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "getAllMessages",
+                "outputs": [{ "internalType": "struct Guestbook.Message[]", "name": "", "type": "tuple[]" }],
+                "stateMutability": "view",
+                "type": "function"
+            }
+        ];
+
+        let provider, signer, contract;
+
+        async function init() {
+            if (typeof window.ethereum !== 'undefined') {
+                await ethereum.request({ method: 'eth_requestAccounts' });
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                signer = provider.getSigner();
+                contract = new ethers.Contract(contractAddress, abi, signer);
+                loadMessages();
+            } else {
+                alert("Please install MetaMask!");
+            }
+        }
+
+        async function leaveMessage() {
+            const message = document.getElementById('message').value;
+            if (!message) return alert('Message cannot be empty!');
+
+            try {
+                const tx = await contract.leaveMessage(message);
+                await tx.wait();
+                alert('Message sent!');
+                loadMessages();
+            } catch (error) {
+                console.error(error);
+                alert('Failed to send message.');
+            }
+        }
+
+        async function loadMessages() {
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.innerHTML = 'Loading...';
+
+            try {
+                const messages = await contract.getAllMessages();
+                messagesDiv.innerHTML = messages.map(msg => `
+                    <p><strong>${msg.sender}</strong>: ${msg.text} <em>(${new Date(msg.timestamp * 1000).toLocaleString()})</em></p>
+                `).join('');
+            } catch (error) {
+                console.error(error);
+                messagesDiv.innerHTML = 'Failed to load messages.';
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
